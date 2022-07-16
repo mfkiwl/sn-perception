@@ -12,7 +12,7 @@ import cv2
 width: int = 960
 height: int = 380
 frame_is_recorded: bool = True
-frame_name: str = "left.png"
+frame_name: str = "right.png"
 
 
 def setup_camera(cam: Camera):
