@@ -358,8 +358,9 @@ class CylindricalStitcher:
         
         print(f"New Height: {New_Height}")
         print(f"New Width: {New_Width}")
-        print(f"Correction: {Correction}")
-        print(f"New Homography: {HomographyMatrix}")
+        print(f"Correction: {Correction}\n")
+        print(f"Corrected Homography: \n {HomographyMatrix} \n ")
+        print("----------------------------------------\n")
 
 
         return [New_Height, New_Width], Correction, HomographyMatrix
@@ -378,7 +379,7 @@ class CylindricalStitcher:
         
         # Finding homography matrix.
         HomographyMatrix, Status = self.FindHomography(Matches, BaseImage_kp, SecImage_kp)
-        print(HomographyMatrix)
+        print(f"Homography, unchanged: \n {HomographyMatrix} \n")
         
         # Finding size of new frame of stitched images and updating the homography matrix 
         NewFrameSize, Correction, HomographyMatrix = self.GetNewFrameSizeAndMatrix(HomographyMatrix, SecImage_Cyl.shape[:2], BaseImage.shape[:2])
