@@ -30,8 +30,7 @@ from typing import Optional
 from vimba import *
 
 # extra imports
-from stitcher import Stitcher
-from cyl_stitcher import CylindricalStitcher
+from pano_class import CylindricalStitcher
 
 FRAME_QUEUE_SIZE = 10
 FRAME_HEIGHT = 720 # 540
@@ -207,8 +206,6 @@ class FrameConsumer(threading.Thread):
 			)
 		except:
 			pass
-		cv2.imwrite("pano.png", self.result)
-		print("written!")
 		cv2.imshow('Multithreading Example: Press <Enter> to exit', cv2.resize(self.result, (1280, 960)))
 
 
