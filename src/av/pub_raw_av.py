@@ -57,10 +57,12 @@ def resize_if_required(frame: Frame) -> np.ndarray:
 	cv_frame = frame.as_opencv_image()
 
 	if (frame.get_height() != FRAME_HEIGHT) or (frame.get_width() != FRAME_WIDTH):
+		print(f"Original Height: {frame.get_height()}")
+		print(f"Original Width: {frame.get_width()}")
 		cv_frame = cv2.resize(
 			cv_frame, (FRAME_WIDTH, FRAME_HEIGHT), interpolation=cv2.INTER_AREA
 		)
-		#cv_frame = cv_frame[..., np.newaxis]
+		# cv_frame = cv_frame[..., np.newaxis]
 
 	return cv_frame
 
@@ -109,27 +111,21 @@ class VimbaPublisher(Node):
 
 	def __init__(self):
 		super().__init__('vimba_publisher')
-		
-		qos_profile = QoSProfile(
-            reliability=QoSReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT,
-            history=QoSHistoryPolicy.RMW_QOS_POLICY_HISTORY_KEEP_LAST,
-            depth=1
-        )
 
 		self.publisher_left_ = self.create_publisher(
-			Image, 'vision/cam/front/vimba_left', 10,
+			Image, 'vision/cam/front/vimba_left', 10
 		)
 		self.publisher_middle_ = self.create_publisher(
-			Image, 'vision/cam/front/vimba_middle', 10, 
+			Image, 'vision/cam/front/vimba_middle', 10
 		)
 		self.publisher_right_ = self.create_publisher(
-			Image, 'vision/cam/front/vimba_right', 10, # qos_profile=qos_profile
+			Image, 'vision/cam/front/vimba_right', 10
 		)
 		self.img_left = None
 		self.img_middle = None
 		self.img_right = None
 
-		timer_period = 1.0
+		timer_period = 0.05
 		self.timer = self.create_timer(timer_period, self.timer_callback)
 		self.bridge = CvBridge()
 	   

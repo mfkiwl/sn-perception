@@ -3,16 +3,28 @@ import sys
 
 from vimba import *
 import cv2
+import numpy as np
 
 # sizes
 # (w: 1280, h: 720)
 # (w: 960  h: 380)
 
 # parameters
-width: int = 960
-height: int = 380
+orig_width: int = 1280
+orig_height: int = 720
+width: int = 680
+height: int = 384
 frame_is_recorded: bool = True
 frame_name: str = "right.png"
+
+
+def resize_img(cv_img: np.ndarray, width: int, height: int) -> np.ndarray:
+	"""Resize an OpenCV image with the given parameters."""
+	cv_img = cv2.resize(
+		cv_img, (width, height), interpolation=cv2.INTER_AREA
+	)
+	# cv_img = cv_img[..., np.newaxis]
+	return cv_img
 
 
 def setup_camera(cam: Camera):
@@ -25,8 +37,8 @@ def setup_camera(cam: Camera):
     with cam:
         # Set frame resolution
         try:
-            cam.Width.set(width)
-            cam.Height.set(height)
+            cam.Width.set(orig_width)
+            cam.Height.set(orig_height)
 
         except (AttributeError, VimbaFeatureError):
             pass
@@ -88,10 +100,12 @@ class Handler:
 
         # code here  
         # separating numpy frame and the Frame provided to queue_frame 
-        if frame_is_recorded:
-            cv2.imwrite(frame_name, frame.as_numpy_ndarray())
+        img = resize_img(frame.as_numpy_ndarray(), width, height)
 
-        cv2.imshow(msg.format(cam.get_name()), frame.as_numpy_ndarray())
+        if frame_is_recorded:
+            cv2.imwrite(frame_name, img)
+
+        cv2.imshow(msg.format(cam.get_name()), img)
 
         # should be called last
         cam.queue_frame(frame)

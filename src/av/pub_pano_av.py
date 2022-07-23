@@ -27,12 +27,24 @@ from panorama.pano_class import CylindricalStitcher
 
 
 #TODO: Parameters as arguments.
-FRAME_HEIGHT = 380
-FRAME_WIDTH = 960
-FOCAL_LENGTH = 1270
+
+FRAME_HEIGHT = 720
+FRAME_WIDTH = 1280
+IMAGE_HEIGHT = 380 # 360 # 384
+IMAGE_WIDTH = 736 # 640 # 680
+FOCAL_LENGTH = 540
 
 IMAGE_CAPTION = 'Panorama Image: Press <Enter> to exit'
 KEY_CODE_ENTER = 13
+
+
+def resize_img(cv_img: np.ndarray, width: int, height: int) -> np.ndarray:
+	"""Resize an OpenCV image with the given parameters."""
+	cv_img = cv2.resize(
+		cv_img, (width, height), interpolation=cv2.INTER_AREA
+	)
+	# cv_img = cv_img[..., np.newaxis]
+	return cv_img
 
 
 #TODO: Put helper functions into a separate package.
@@ -60,11 +72,11 @@ def resize_if_required(frame: Frame) -> np.ndarray:
 	"""
 	cv_frame = frame.as_opencv_image()
 
-	if (frame.get_height() != FRAME_HEIGHT) or (frame.get_width() != FRAME_WIDTH):
+	if (frame.get_height() != IMAGE_HEIGHT) or (frame.get_width() != IMAGE_WIDTH):
 		cv_frame = cv2.resize(
-			cv_frame, (FRAME_WIDTH, FRAME_HEIGHT), interpolation=cv2.INTER_AREA
+			cv_frame, (IMAGE_WIDTH, IMAGE_HEIGHT), interpolation=cv2.INTER_AREA
 		)
-		cv_frame = cv_frame[..., np.newaxis]
+		# cv_frame = cv_frame[..., np.newaxis]
 
 	return cv_frame
 
@@ -203,8 +215,17 @@ class FrameProducerThread(threading.Thread):
 
 	#TODO: Customize camera setup!
 	def setup_camera(self):
-		set_nearest_value(self.cam, 'Height', FRAME_HEIGHT)
 		set_nearest_value(self.cam, 'Width', FRAME_WIDTH)
+		set_nearest_value(self.cam, 'Height', FRAME_HEIGHT)
+
+
+		# Enable white balancing
+		try:
+			self.BalanceWhiteAuto.set('Continuous')
+
+		except (AttributeError, VimbaFeatureError):
+			self.log.info('Camera {}: Failed to set Feature \'BalanceWhiteAuto\'.'.format(
+						  self.cam.get_id()))
 
 		# Try to enable automatic exposure time setting
 		try:
@@ -214,7 +235,7 @@ class FrameProducerThread(threading.Thread):
 			self.log.info('Camera {}: Failed to set Feature \'ExposureAuto\'.'.format(
 						  self.cam.get_id()))
 
-		self.cam.set_pixel_format(PixelFormat.Bgr8)
+		self.cam.set_pixel_format(PixelFormat.Mono8)
 
 
 	def run(self):
@@ -266,8 +287,7 @@ class FrameConsumerThread(threading.Thread):
 		convert = lambda text: int(text) if text.isdigit() else text.lower()
 		# comprehension list to acquire frames in cv2 (numpy) format
 		cv_images = [
-			resize_if_required(
-				frames[cam_id]) for cam_id in sorted(frames.keys(), 
+			resize_img(frames[cam_id].as_numpy_ndarray(), IMAGE_WIDTH, IMAGE_HEIGHT) for cam_id in sorted(frames.keys(), 
 				key = lambda x: ([str,int].index( type(convert(x[-1])) ), x)
 			)
 		]

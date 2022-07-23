@@ -1,25 +1,3 @@
-"""BSD 2-Clause License
-Copyright (c) 2019, Allied Vision Technologies GmbH
-All rights reserved.
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-"""
-
 import copy
 import cv2
 import threading
@@ -32,17 +10,19 @@ from vimba import *
 # extra imports
 from pano_class import CylindricalStitcher
 
-FRAME_QUEUE_SIZE = 10
-FRAME_HEIGHT = 720 # 540
-FRAME_WIDTH = 1280 # 960
-FOCAL_LENGTH = 1270
+FRAME_HEIGHT = 720
+FRAME_WIDTH = 1280
+IMAGE_HEIGHT = 384
+IMAGE_WIDTH = 680
+FOCAL_LENGTH = 540
 
-
-def print_preamble():
-	print('////////////////////////////////////////////')
-	print('/// Multithreaded Camera Source ///////')
-	print('////////////////////////////////////////////\n')
-	print(flush=True)
+def resize_img(cv_img: numpy.ndarray, width: int, height: int) -> numpy.ndarray:
+	"""Resize an OpenCV image with the given parameters."""
+	cv_img = cv2.resize(
+		cv_img, (width, height), interpolation=cv2.INTER_AREA
+	)
+	# cv_img = cv_img[..., numpy.newaxis]
+	return cv_img
 
 
 def add_camera_id(frame: Frame, cam_id: str) -> Frame:
@@ -67,7 +47,7 @@ def resize_if_required(frame: Frame) -> numpy.ndarray:
 
 
 def create_dummy_frame() -> numpy.ndarray:
-	cv_frame = numpy.zeros((50, 640, 1), numpy.uint8)
+	cv_frame = numpy.zeros((384, 680), numpy.uint8)
 	cv_frame[:] = 0
 
 	cv2.putText(cv_frame, 'No Stream available. Please connect a Camera.', org=(30, 30),
@@ -142,8 +122,16 @@ class FrameProducer(threading.Thread):
 		self.killswitch.set()
 
 	def setup_camera(self):
-		set_nearest_value(self.cam, 'Height', FRAME_HEIGHT)
 		set_nearest_value(self.cam, 'Width', FRAME_WIDTH)
+		set_nearest_value(self.cam, 'Height', FRAME_HEIGHT)
+
+		# Enable white balancing
+		try:
+			self.cam.BalanceWhiteAuto.set('Continuous')
+
+		except (AttributeError, VimbaFeatureError):
+			self.log.info('Camera {}: Failed to set Feature \'BalanceWhiteAuto\'.'.format(
+						  self.cam.get_id()))
 
 		# Try to enable automatic exposure time setting
 		try:
@@ -153,7 +141,7 @@ class FrameProducer(threading.Thread):
 			self.log.info('Camera {}: Failed to set Feature \'ExposureAuto\'.'.format(
 						  self.cam.get_id()))
 
-		self.cam.set_pixel_format(PixelFormat.Bgr8)
+		self.cam.set_pixel_format(PixelFormat.Mono8)
 
 	def run(self):
 		self.log.info('Thread \'FrameProducer({})\' started.'.format(self.cam.get_id()))
@@ -184,7 +172,11 @@ class FrameConsumer(threading.Thread):
 
 		self.log = Log.get_instance()
 		self.frame_queue = frame_queue
-		self.stitcher = CylindricalStitcher(FRAME_HEIGHT, FRAME_WIDTH, FOCAL_LENGTH)
+		self.stitcher = CylindricalStitcher(IMAGE_HEIGHT, IMAGE_WIDTH, FOCAL_LENGTH)
+		self.frame_left = create_dummy_frame()
+		self.frame_middle = create_dummy_frame()
+		self.frame_right = create_dummy_frame()
+
 		self.result = create_dummy_frame()
 
 
@@ -195,18 +187,37 @@ class FrameConsumer(threading.Thread):
 
 		convert = lambda text: int(text) if text.isdigit() else text.lower()
 		cv_images = [
-			resize_if_required(frames[cam_id]) for cam_id in sorted(
-				frames.keys(), key=lambda x: ([str,int].index( type(convert(x[-1])) ), x)
+			resize_img(frames[cam_id].as_numpy_ndarray(), IMAGE_WIDTH, IMAGE_HEIGHT) for cam_id in sorted(frames.keys(), 
+				key=lambda x: ([str,int].index( type(convert(x[-1])) ), x)
 			)
 		]
 
-		try:
-			self.result = self.stitcher.create_panorama(
-				[ cv_images[1], cv_images[0], cv_images[2] ]
-			)
-		except:
+		print(len(cv_images))
+
+		if len(cv_images) == 0:
 			pass
-		cv2.imshow('Multithreading Example: Press <Enter> to exit', cv2.resize(self.result, (1280, 960)))
+		elif len(cv_images) == 1:
+			self.frame_left, self.frame_middle, self.frame_right = cv_images[0], create_dummy_frame(), create_dummy_frame()
+		elif len(cv_images) == 2:
+			self.frame_left, self.frame_middle, self.frame_right = cv_images[0], cv_images[1], create_dummy_frame()
+		else:
+			self.frame_left, self.frame_middle, self.frame_right = cv_images[0], cv_images[1], cv_images[2]
+
+		print(f"Shape left: {self.frame_left.shape}")
+		print(f"Shape middle: {self.frame_middle.shape}")
+		print(f"Shape right: {self.frame_right.shape}")
+
+		self.result = numpy.concatenate([self.frame_left, self.frame_middle, self.frame_right], axis=1)
+
+		cv2.imshow('Multithreading Example: Press <Enter> to exit', self.result)
+
+		# try:
+		# 	self.result = self.stitcher.create_panorama(
+		# 		[ cv_images[1], cv_images[0], cv_images[2] ]
+		# 	)
+		# except:
+		# 	pass
+		# cv2.imshow('Multithreading Example: Press <Enter> to exit', cv2.resize(self.result, (1280, 960)))
 
 
 	def run(self):
@@ -273,7 +284,8 @@ class MainThread(threading.Thread):
 	def __init__(self):
 		threading.Thread.__init__(self)
 
-		self.frame_queue = queue.Queue(maxsize=FRAME_QUEUE_SIZE)
+		self.FRAME_QUEUE_SIZE = 3
+		self.frame_queue = queue.Queue(maxsize=self.FRAME_QUEUE_SIZE)
 		self.producers = {}
 		self.producers_lock = threading.Lock()
 
@@ -330,7 +342,6 @@ class MainThread(threading.Thread):
 
 
 if __name__ == '__main__':
-	print_preamble()
 	main = MainThread()
 	main.start()
 	main.join()
