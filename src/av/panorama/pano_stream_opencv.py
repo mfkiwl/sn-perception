@@ -8,7 +8,7 @@ from typing import Optional
 from vimba import *
 
 # extra imports
-from pano_class import CylindricalStitcher
+from pano_test import CylindricalStitcher
 
 FRAME_HEIGHT = 720
 FRAME_WIDTH = 1280
@@ -47,7 +47,7 @@ def resize_if_required(frame: Frame) -> numpy.ndarray:
 
 
 def create_dummy_frame() -> numpy.ndarray:
-	cv_frame = numpy.zeros((384, 680), numpy.uint8)
+	cv_frame = numpy.zeros((384, 680, 3), numpy.uint8)
 	cv_frame[:] = 0
 
 	cv2.putText(cv_frame, 'No Stream available. Please connect a Camera.', org=(30, 30),
@@ -141,7 +141,7 @@ class FrameProducer(threading.Thread):
 			self.log.info('Camera {}: Failed to set Feature \'ExposureAuto\'.'.format(
 						  self.cam.get_id()))
 
-		self.cam.set_pixel_format(PixelFormat.Mono8)
+		self.cam.set_pixel_format(PixelFormat.Bgr8)
 
 	def run(self):
 		self.log.info('Thread \'FrameProducer({})\' started.'.format(self.cam.get_id()))
@@ -192,8 +192,6 @@ class FrameConsumer(threading.Thread):
 			)
 		]
 
-		print(len(cv_images))
-
 		if len(cv_images) == 0:
 			pass
 		elif len(cv_images) == 1:
@@ -203,11 +201,15 @@ class FrameConsumer(threading.Thread):
 		else:
 			self.frame_left, self.frame_middle, self.frame_right = cv_images[0], cv_images[1], cv_images[2]
 
-		print(f"Shape left: {self.frame_left.shape}")
-		print(f"Shape middle: {self.frame_middle.shape}")
-		print(f"Shape right: {self.frame_right.shape}")
+		# convert to 3-channel
+		# classframes = [self.frame_left, self.frame_middle, self.frame_right]
+		# classframes = [cv2.cvtColor(img, cv2.COLOR_GRAY2RGB) for img in classframes]
 
-		self.result = numpy.concatenate([self.frame_left, self.frame_middle, self.frame_right], axis=1)
+		self.result = self.stitcher.create_panorama(
+			[ self.frame_left, self.frame_middle, self.frame_right]
+			)
+
+		# self.result = numpy.concatenate([self.frame_left, self.frame_middle, self.frame_right], axis=1)
 
 		cv2.imshow('Multithreading Example: Press <Enter> to exit', self.result)
 

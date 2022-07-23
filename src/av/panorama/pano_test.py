@@ -410,6 +410,101 @@ class CylindricalStitcher:
         # does focal length needs to be varied - if yes, create a variable focal length function
         # find out focal length of the AV camera LENS
         # try bigger AV images with ROS galactic
+    #######
+    def stitch_images(self, base_img, sec_img, side, precalc=True):
+        """Stitches two images together."""
+        
+        # project secondary image onto a cylinder
+        sec_img_cyl = self.project_onto_cylinder_preset(sec_img)
+
+        # get secondary image mask
+        sec_img_mask = np.zeros(sec_img_cyl.shape, dtype=np.uint8)
+        sec_img_mask[self.mask_y, self.mask_x, :] = 255
+
+        if not precalc:
+            # Find image keypoints and matches between them.
+            matches, base_img_kp, sec_img_kp = self.find_matches(base_img, sec_img_cyl)
+
+            # TODO: pass side to the function, so the homography
+            # calculation and correction can be written into the 
+            # right class variables (or make it more modular! along with warp)
+
+            if side == 'left':
+                pass
+            elif side == 'right':
+                pass
+            else:
+                print("Invalid side value. Valid values: 'left', 'right'")
+
+            # Find homography matrix.
+            homography_matrix, status = self.find_homography(matches, base_img_kp, sec_img_kp)
+
+            # Finding size of new frame of stitched images and updating the homography matrix. 
+            new_frame_size, correction, homography_matrix = self.get_new_frame_size_and_matrix(
+                homography_matrix, sec_img_cyl.shape[:2], base_img.shape[:2]
+            )
+
+        # TODO: Precalculate and print new_frame size (for both, correction, and corrected homography matrix)
+
+        if side == 'left':
+            # Placing the images upon one another
+            sec_img_transformed = cv2.warpPerspective(
+                sec_img_cyl, self.H_l_corr, (self.new_width_l, self.new_height_l)
+            )
+            sec_img_transformed_mask = cv2.warpPerspective(
+                sec_img_mask, self.H_l_corr, (self.new_width_l, self.new_height_l)
+            )
+            base_img_transformed = np.zeros((self.new_height_l, self.new_width_l, 3), dtype=np.uint8)
+            base_img_transformed[
+                self.corr_l[1] : self.corr_l[1] + base_img.shape[0],
+                self.corr_l[0] : self.corr_l[0] + base_img.shape[1]
+            ] = base_img
+
+            stitched_img = cv2.bitwise_or(
+                sec_img_transformed, cv2.bitwise_and(
+                    base_img_transformed, cv2.bitwise_not(sec_img_transformed_mask)
+                )
+            )
+
+            return stitched_img
+
+        elif side == 'right':
+            # Placing the images upon one another
+            sec_img_transformed = cv2.warpPerspective(
+                sec_img_cyl, self.H_r_corr, (self.new_width_r, self.new_height_r)
+            )
+            sec_img_transformed_mask = cv2.warpPerspective(
+                sec_img_mask, self.H_r_corr, (self.new_width_r, self.new_height_r)
+            )
+            base_img_transformed = np.zeros((self.new_height_r, self.new_width_r, 3), dtype=np.uint8)
+            base_img_transformed[
+                self.corr_r[1] : self.corr_r[1] + base_img.shape[0],
+                self.corr_r[0] : self.corr_r[0] + base_img.shape[1]
+            ] = base_img
+
+            stitched_img = cv2.bitwise_or(
+                sec_img_transformed, cv2.bitwise_and(
+                    base_img_transformed, cv2.bitwise_not(sec_img_transformed_mask)
+                )
+            )
+
+            return stitched_img
+
+    def create_panorama(self, images):
+        """Main function."""
+
+        # take out min(ii_x) and calculations with it into constructor
+        base_img = self.project_onto_cylinder_preset(images[0])
+
+        # stitch left image (pass homography and other args if needed)
+        stitched_left = self.stitch_images(base_img, images[1], 'left')
+
+        # stitch right image (pass stuff as above)
+        pano = self.stitch_images(stitched_left, images[2], 'right')
+
+        #pano = self.crop_borders(pano)
+
+        return pano
 
 
 if __name__ == '__main__':
