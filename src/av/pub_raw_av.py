@@ -24,8 +24,8 @@ import numpy as np
 
 
 #TODO: Parameters as arguments.
-FRAME_HEIGHT = 540
-FRAME_WIDTH = 960
+FRAME_HEIGHT = 384
+FRAME_WIDTH = 680
 IMAGE_CAPTION = 'Panorama Image: Press <Enter> to exit'
 KEY_CODE_ENTER = 13
 
@@ -59,7 +59,7 @@ def resize_if_required(frame: Frame) -> np.ndarray:
 		cv_frame = cv2.resize(
 			cv_frame, (FRAME_WIDTH, FRAME_HEIGHT), interpolation=cv2.INTER_AREA
 		)
-		cv_frame = cv_frame[..., np.newaxis]
+		#cv_frame = cv_frame[..., np.newaxis]
 
 	return cv_frame
 

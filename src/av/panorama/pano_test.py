@@ -6,6 +6,17 @@ import numpy as np
 import time
 
 
+# testing utility 
+
+def resize_img(cv_img: np.ndarray, width: int, height: int) -> np.ndarray:
+	"""Resize an OpenCV image with the given parameters."""
+	cv_img = cv2.resize(
+		cv_img, (width, height), interpolation=cv2.INTER_AREA
+	)
+	# cv_img = cv_img[..., np.newaxis]
+	return cv_img
+
+
 class CylindricalStitcher:
     """
     Cylindrical panorama stitcher.
@@ -157,6 +168,8 @@ class CylindricalStitcher:
                 ImageName = ImageNames_Sorted[i]
                 InputImage = cv2.imread(img_dir_path + "/" + ImageName)  # Reading images one by one.
                 
+                InputImage = resize_img(InputImage, self.w, self.h)
+
                 # Checking if image is read
                 if InputImage is None:
                     print("Not able to read image: {}".format(ImageName))
@@ -401,11 +414,12 @@ class CylindricalStitcher:
 
 
 if __name__ == '__main__':
-    stitcher = CylindricalStitcher(720, 1280, f=1010)
+    # (384, 680) - outdoors: f=510 - indoors: f=540
+    stitcher = CylindricalStitcher(384, 680, f=540)
     #img_init = cv2.imread("imgs/room/2.jpg")
 
     # Reading images.
-    Images = stitcher.read_images("2")
+    Images = stitcher.read_images("src/av/panorama/assets/indoors/room")
     print("[INFO] Images read!")
 
     start1 = time.process_time()
