@@ -8,7 +8,7 @@ from typing import Optional
 from vimba import *
 
 # extra imports
-from pano_test import CylindricalStitcher
+from pano_class import CylindricalStitcher
 
 FRAME_HEIGHT = 720
 FRAME_WIDTH = 1280
@@ -206,7 +206,7 @@ class FrameConsumer(threading.Thread):
 		# classframes = [cv2.cvtColor(img, cv2.COLOR_GRAY2RGB) for img in classframes]
 
 		self.result = self.stitcher.create_panorama(
-			[ self.frame_left, self.frame_middle, self.frame_right]
+			[ self.frame_left, self.frame_middle, self.frame_right ]
 			)
 
 		# self.result = numpy.concatenate([self.frame_left, self.frame_middle, self.frame_right], axis=1)

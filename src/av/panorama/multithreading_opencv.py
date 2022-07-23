@@ -137,7 +137,7 @@ class FrameProducer(threading.Thread):
             self.log.info('Camera {}: Failed to set Feature \'ExposureAuto\'.'.format(
                           self.cam.get_id()))
 
-        self.cam.set_pixel_format(PixelFormat.Mono8)
+        self.cam.set_pixel_format(PixelFormat.Bgr8)
 
     def run(self):
         self.log.info('Thread \'FrameProducer({})\' started.'.format(self.cam.get_id()))
