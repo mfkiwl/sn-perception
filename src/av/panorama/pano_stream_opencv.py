@@ -206,7 +206,7 @@ class FrameConsumer(threading.Thread):
 		# classframes = [cv2.cvtColor(img, cv2.COLOR_GRAY2RGB) for img in classframes]
 
 		self.result = self.stitcher.create_panorama(
-			[ self.frame_left, self.frame_middle, self.frame_right ]
+			[ self.frame_middle, self.frame_left, self.frame_right ]
 			)
 
 		# self.result = numpy.concatenate([self.frame_left, self.frame_middle, self.frame_right], axis=1)
