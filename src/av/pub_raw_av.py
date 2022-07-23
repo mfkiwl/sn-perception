@@ -18,6 +18,7 @@ from rclpy.node import Node
 from std_msgs.msg import Header
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
+from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy
 
 import cv2
 import numpy as np
@@ -109,20 +110,26 @@ class VimbaPublisher(Node):
 	def __init__(self):
 		super().__init__('vimba_publisher')
 		
+		qos_profile = QoSProfile(
+            reliability=QoSReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT,
+            history=QoSHistoryPolicy.RMW_QOS_POLICY_HISTORY_KEEP_LAST,
+            depth=1
+        )
+
 		self.publisher_left_ = self.create_publisher(
-			Image, 'vision/cam/front/vimba_left', 10
+			Image, 'vision/cam/front/vimba_left', 10,
 		)
 		self.publisher_middle_ = self.create_publisher(
-			Image, 'vision/cam/front/vimba_middle', 10
+			Image, 'vision/cam/front/vimba_middle', 10, 
 		)
 		self.publisher_right_ = self.create_publisher(
-			Image, 'vision/cam/front/vimba_right', 10
+			Image, 'vision/cam/front/vimba_right', 10, # qos_profile=qos_profile
 		)
 		self.img_left = None
 		self.img_middle = None
 		self.img_right = None
 
-		timer_period = 0.04
+		timer_period = 1.0
 		self.timer = self.create_timer(timer_period, self.timer_callback)
 		self.bridge = CvBridge()
 	   
